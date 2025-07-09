@@ -181,5 +181,47 @@ bool dye(dye_tty_t tty, dye_color_t fg, dye_color_t bg) {
 #endif // DYE_POSIX
 }
 
+bool dye_style(dye_tty_t tty, dye_style_t style) {
+#if defined DYE_POSIX
+  static const char *ansi_term[] = {"ansi",  "color",   "console", "cygwin",
+                                    "gnome", "konsole", "kterm",   "linux",
+                                    "msys",  "putty",   "rxvt",    "screen",
+                                    "vt100", "xterm",   NULL};
+
+  if (!isatty(fileno(tty)))
+    return false;
+
+  const char *term = getenv("TERM");
+  if (!term)
+    return false;
+
+  bool is_ansi_term = false;
+  for (const char **t = ansi_term; *t && !is_ansi_term; ++t) {
+    if (strncmp(term, *t, strlen(*t)) == 0)
+      is_ansi_term = true;
+  }
+  if (!is_ansi_term)
+    return false;
+
+  int ret;
+  if (style == DYE_STYLE_RESET)
+    ret = fprintf(tty, "\x1b[0m");
+  else
+    ret = fprintf(tty, "\x1b[%dm", (int)style);
+
+  if (ret < 0)
+    return false;
+
+  if (fflush(tty) != 0)
+    return false;
+
+  return true;
+#else
+  // Winblows — do nothing :)
+  (void)style; // suppress unused param warning
+  return false;
+#endif
+}
+
 #undef DYE_WIN32
 #undef DYE_POSIX
